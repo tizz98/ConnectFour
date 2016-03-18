@@ -29,7 +29,13 @@
         Public IsRowWin As Boolean = False
 
         Public Function getPlayerWinnerTag() As String
-            Return IIf(BackColor = PLAYER_1_COLOR, PLAYER_1_TAG, PLAYER_2_TAG)
+            If BackColor = PLAYER_1_COLOR Then
+                Return PLAYER_1_TAG
+            ElseIf BackColor = PLAYER_2_COLOR Then
+                Return PLAYER_2_TAG
+            Else
+                Return Nothing
+            End If
         End Function
     End Class
 
@@ -42,7 +48,13 @@
     End Sub
 
     Private Function getCurrentPlayerTag() As Object
-        Return IIf(btnPlayer1.Enabled, btnPlayer1.Tag, btnPlayer2.Tag)
+        If btnPlayer1.Enabled Then
+            Return PLAYER_1_TAG
+        ElseIf btnPlayer2.Enabled Then
+            Return PLAYER_2_TAG
+        Else
+            Return Nothing
+        End If
     End Function
 
     Private Sub playerButton_MouseMove(sender As Object, e As MouseEventArgs) Handles btnPlayer1.MouseMove, btnPlayer2.MouseMove
