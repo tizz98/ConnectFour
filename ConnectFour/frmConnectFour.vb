@@ -8,8 +8,8 @@
     Private Const COL_SPACE As Integer = 103
     Private Const DROP_ZONE_FMT_STR As String = "btnColumn{0}DropZone"
     Private Const COL_ROW_FMT_STR As String = "btnCol{0}Row{1}"
-    Private PLAYER_1_COLOR As Color = Color.Aqua
-    Private PLAYER_2_COLOR As Color = Color.Yellow
+    Private Shared PLAYER_1_COLOR As Color = Color.Aqua
+    Private Shared PLAYER_2_COLOR As Color = Color.Yellow
     Private OK_DROP_COLOR As Color = Color.Green
     Private BAD_DROP_COLOR As Color = Color.Red
     Private Const GO_TEXT As String = ": Go!"
@@ -19,6 +19,19 @@
 
     Private WithEvents colDropZoneButtons As List(Of Button)
     Private WithEvents colsRowsButtons As List(Of Button)
+
+    Private Class Winner
+        Public Column As Integer
+        Public Row As Integer
+        Public BackColor As Color
+        Public IsWinner As Boolean = False
+        Public IsColWin As Boolean = False
+        Public IsRowWin As Boolean = False
+
+        Public Function getPlayerWinnerTag() As String
+            Return IIf(BackColor = PLAYER_1_COLOR, PLAYER_1_TAG, PLAYER_2_TAG)
+        End Function
+    End Class
 
     Private Sub frmConnectFour_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         createGameBoard()
@@ -59,14 +72,39 @@
 
     Private Sub dropZoneButton_DragDrop(sender As Object, e As DragEventArgs)
         Dim srcButton As Button = DirectCast(sender, Button)
+        Dim w As Winner
+
         srcButton.BackColor = SystemColors.Control
 
         Console.Write(e.Data.GetData("Text", True))
         Console.WriteLine(" in col: " + srcButton.Text)
 
         dropPlayer(CInt(srcButton.Text), CStr(getCurrentPlayerTag()))
+        w = getWinner()
 
-        switchTurns()
+        If Not w.IsWinner Then
+            switchTurns()
+        Else
+            lblWinnerText.Text = "Game goes to " & IIf(w.getPlayerWinnerTag() = PLAYER_1_TAG, "1", "2") & " - " & IIf(w.IsColWin, "Column", "Row") & " " & IIf(w.IsColWin, w.Column, w.Row)
+            lblWinnerText.Visible = True
+
+            finishGame()
+        End If
+
+        If Not hasMovesAvailable() Then
+            lblWinnerText.Text = "No spaces left to move"
+            lblWinnerText.Visible = True
+
+            finishGame()
+        End If
+    End Sub
+
+    Private Sub finishGame()
+        btnPlayer1.Enabled = False
+        btnPlayer2.Enabled = False
+
+        lblPlayer1.Text = lblPlayer1.Text.Replace(GO_TEXT, "")
+        lblPlayer2.Text = lblPlayer2.Text.Replace(GO_TEXT, "")
     End Sub
 
     Private Function canDropInColumn(column As Integer) As Boolean
@@ -102,8 +140,76 @@
         Next
     End Sub
 
+    Private Function getWinner() As Winner
+        Dim w As New Winner()
+
+        Dim cols = From btn In colsRowsButtons
+                   Group btn By (DirectCast(btn.Tag, Point)).X Into Group
+                   Select Group
+
+        For Each col In cols.ToList()
+            Dim tmpStr As String = ""
+            Dim row As Button = Nothing
+
+            For Each row In col
+                If row.BackColor = PLAYER_1_COLOR Then
+                    tmpStr &= "1"
+                ElseIf row.BackColor = PLAYER_2_COLOR Then
+                    tmpStr &= "2"
+                Else
+                    tmpStr &= " "
+                End If
+            Next
+
+            If (Not IsNothing(row)) And (tmpStr.Contains("1111") Or tmpStr.Contains("2222")) Then
+                w.IsWinner = True
+                w.IsColWin = True
+                w.Column = (DirectCast(row.Tag, Point)).X
+                w.BackColor = IIf(tmpStr.Contains("1111"), PLAYER_1_COLOR, PLAYER_2_COLOR)  ' there was a winner so it is one or the other
+
+                Return w
+            End If
+        Next
+
+        Dim rows = From btn In colsRowsButtons
+                   Group btn By (DirectCast(btn.Tag, Point)).Y Into Group
+                   Select Group
+
+        For Each row In rows.ToList()
+            Dim tmpStr As String = ""
+            Dim col As Button = Nothing
+
+            For Each col In row
+                If col.BackColor = PLAYER_1_COLOR Then
+                    tmpStr &= "1"
+                ElseIf col.BackColor = PLAYER_2_COLOR Then
+                    tmpStr &= "2"
+                Else
+                    tmpStr &= " "
+                End If
+            Next
+
+            If (Not IsNothing(col)) And (tmpStr.Contains("1111") Or tmpStr.Contains("2222")) Then
+                w.IsWinner = True
+                w.IsRowWin = True
+                w.Row = (DirectCast(col.Tag, Point)).Y
+                w.BackColor = IIf(tmpStr.Contains("1111"), PLAYER_1_COLOR, PLAYER_2_COLOR)  ' there was a winner so it is one or the other
+            End If
+        Next
+
+        Return w  ' no winner, no dinner
+    End Function
+
+    Private Function hasMovesAvailable() As Boolean
+        Dim spaces = (From btn In colsRowsButtons
+                      Where btn.Text = ""
+                      Select btn).ToArray()
+        Return spaces.Length > 0
+    End Function
+
     Private Sub startNewGame()
-        Dim player1First As Boolean = MessageBox.Show("Should player one go first?", "Start New Game", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes
+        Dim player1First As Boolean = MessageBox.Show("Should player one go first?", "Start New Game",
+                                                      MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes
         ' reversed so that switchTurns will unreverse it
         btnPlayer1.Enabled = Not player1First
         btnPlayer2.Enabled = player1First
@@ -199,6 +305,9 @@
 
         lblPlayer1.Text = lblPlayer1.Text.Replace(GO_TEXT, "")
         lblPlayer2.Text = lblPlayer2.Text.Replace(GO_TEXT, "")
+
+        lblWinnerText.Text = ""
+        lblWinnerText.Visible = False
 
         createGameBoard()
         startNewGame()
