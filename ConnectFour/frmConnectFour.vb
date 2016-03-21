@@ -220,10 +220,6 @@ Public Class frmConnectFour
         Dim w As Winner
 
         srcButton.BackColor = SystemColors.Control
-
-        Console.Write(e.Data.GetData("Text", True))
-        Console.WriteLine(" in col: " + srcButton.Text)
-
         dropPlayer(CInt(srcButton.Text), CStr(getCurrentPlayerTag()))
         w = getWinner()
 
